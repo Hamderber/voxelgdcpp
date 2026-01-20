@@ -7,6 +7,7 @@
 #include "godot_cpp/variant/vector3i.hpp"
 #include "hpp/tools/hash.hpp"
 #include "hpp/tools/log.hpp"
+#include "hpp/tools/log_stream.hpp"
 #include "hpp/voxel/constants.hpp"
 #include <cstdint>
 
@@ -146,15 +147,15 @@ namespace Voxel
         Tools::Log::debug("World rebuild executed!");
     }
 
-    void World::generate_new_chunk(int x, int y)
+    void World::generate_new_chunk(int x, int z)
     {
         Chunk *pChunk = memnew(Chunk);
-        pChunk->set_world_position(this, x, y);
+        pChunk->set_world_position(this, x, z);
         pChunk->set_pallet(m_pallet);
 
         m_chunks.emplace(Tools::Hash::chunk(pChunk), pChunk);
 
-        pChunk->set_name("Chunk_" + itos(x) + "_" + itos(y));
+        pChunk->set_name("Chunk_" + itos(x) + "_" + itos(z));
 
         add_child(pChunk);
         pChunk->set_owner(this);
@@ -171,9 +172,9 @@ namespace Voxel
 
         for (int32_t x = -m_spawnRadius; x < m_spawnRadius; x++)
         {
-            for (int32_t y = -m_spawnRadius; y < m_spawnRadius; y++)
+            for (int32_t z = -m_spawnRadius; z < m_spawnRadius; z++)
             {
-                generate_new_chunk(x * L, y * L);
+                generate_new_chunk(x * L, z * L);
                 count++;
             }
         }

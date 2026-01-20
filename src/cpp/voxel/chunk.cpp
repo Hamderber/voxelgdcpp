@@ -15,6 +15,7 @@
 #include <godot_cpp/variant/color.hpp>
 
 using namespace godot;
+using namespace Voxel::Resource;
 
 namespace Voxel
 {
@@ -83,6 +84,16 @@ namespace Voxel
         }
 
         remesh();
+    }
+
+    void Chunk::set_world_position(World *pWorld, int x, int z)
+    {
+        m_pWorld = pWorld;
+
+        m_pos = godot::Vector2i(x, z);
+        set_position(godot::Vector3i(m_pos.x, 0, m_pos.y));
+        Tools::Log::debug() << "Set chunk " << this << " to " << Tools::String::xy_to_string(x, z)
+                            << " in world " << pWorld << ".";
     }
 
     void Chunk::sync_instance_transform()
@@ -169,7 +180,15 @@ namespace Voxel
                 {
                     // 1/20 solid vs air at/below sea level, 1 / 100 above
                     auto block = new Block();
-                    block->set_solid(rng->randi_range(1, y < sea_level ? 20 : 100) == 1);
+                    bool solid = rng->randi_range(1, y < sea_level ? 20 : 100) == 1;
+
+                    if (solid)
+                    {
+                        auto index = rng->randi_range(0, Pallet::TYPE_COUNT - 1);
+                        block->set_material_type(static_cast<Pallet::MaterialType>(index));
+                        block->set_solid(solid);
+                    }
+
                     m_pBlocks[get_block_index_local(x, y, z)] = block;
                 }
             }
@@ -191,10 +210,16 @@ namespace Voxel
             m_mesh.instantiate();
         }
 
-        PackedVector3Array vertices;
-        PackedVector3Array vertex_normals;
-        PackedVector2Array uvs;
-        PackedInt32Array indices;
+        struct SurfaceData
+        {
+            PackedVector3Array vertices;
+            PackedVector3Array vertex_normals;
+            PackedVector2Array uvs;
+            PackedInt32Array indices;
+        };
+
+        // Change: Array of data, indexed by MaterialType (assuming TYPE_UNKNOWN=0, up to TYPE_COUNT-1).
+        SurfaceData data[Pallet::TYPE_COUNT];
 
         const uint32_t XZ = CHUNK_AXIS_LENGTH_U;
         const uint32_t Y = CHUNK_HEIGHT_U;
@@ -208,6 +233,17 @@ namespace Voxel
                     auto block = get_block_at(x, y, z);
                     if (!block || !block->is_solid())
                         continue;
+
+                    auto type = block->get_material_type();
+                    if (type < 0 || type >= Pallet::TYPE_COUNT)
+                    {
+                        Tools::Log::error() << "Attempted to assign unknown material value " << type
+                                            << " to block at " << Tools::String::xyz_to_string(x, y, z)
+                                            << " in chunk " << Tools::String::to_string(m_pos) << ".";
+                        type = Pallet::TYPE_UNKNOWN;
+                    }
+
+                    SurfaceData &sd = data[type];
 
                     const Vector3 o(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
 
@@ -224,47 +260,54 @@ namespace Voxel
 
                     // +Z (front)
                     if (z == XZ - 1 || !get_block_at(x, y, z + 1)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p001, p101, p111, p011, Vector3(0, 0, 1));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p001, p101, p111, p011, Vector3(0, 0, 1));
 
                     // -Z (back)
                     if (z == 0 || !get_block_at(x, y, z - 1)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p100, p000, p010, p110, Vector3(0, 0, -1));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p100, p000, p010, p110, Vector3(0, 0, -1));
 
                     // +X (right)
                     if (x == XZ - 1 || !get_block_at(x + 1, y, z)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p101, p100, p110, p111, Vector3(1, 0, 0));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p101, p100, p110, p111, Vector3(1, 0, 0));
 
                     // -X (left)
                     if (x == 0 || !get_block_at(x - 1, y, z)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p000, p001, p011, p010, Vector3(-1, 0, 0));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p000, p001, p011, p010, Vector3(-1, 0, 0));
 
                     // +Y (top)
                     if (y == Y - 1 || !get_block_at(x, y + 1, z)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p011, p111, p110, p010, Vector3(0, 1, 0));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p011, p111, p110, p010, Vector3(0, 1, 0));
 
                     // -Y (bottom)
                     if (y == 0 || !get_block_at(x, y - 1, z)->is_solid())
-                        add_face(vertices, vertex_normals, uvs, indices, p000, p100, p101, p001, Vector3(0, -1, 0));
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p000, p100, p101, p001, Vector3(0, -1, 0));
                 }
             }
         }
 
-        if (indices.size() > 0)
+        const int surface_order[] = { Pallet::TYPE_GENERIC, Pallet::TYPE_METAL, Pallet::TYPE_UNKNOWN, Pallet::TYPE_GLASS };
+
+        for (int i = 0; i < Pallet::TYPE_COUNT; i++)
         {
+            int type = surface_order[i];
+            SurfaceData &sd = data[type];
+            if (sd.indices.size() == 0)
+                continue;
+
             Array arrays;
             arrays.resize(Mesh::ARRAY_MAX);
-            arrays[Mesh::ARRAY_VERTEX] = vertices;
-            arrays[Mesh::ARRAY_NORMAL] = vertex_normals;
-            arrays[Mesh::ARRAY_TEX_UV] = uvs;
-            arrays[Mesh::ARRAY_INDEX] = indices;
+            arrays[Mesh::ARRAY_VERTEX] = sd.vertices;
+            arrays[Mesh::ARRAY_NORMAL] = sd.vertex_normals;
+            arrays[Mesh::ARRAY_TEX_UV] = sd.uvs;
+            arrays[Mesh::ARRAY_INDEX] = sd.indices;
 
             m_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 
-            auto generic_material = m_pallet->get_generic_material();
-
-            if (generic_material.is_valid() && m_mesh->get_surface_count() > 0)
+            int surface_idx = m_mesh->get_surface_count() - 1;
+            Ref<StandardMaterial3D> mat = m_pallet->get_material(type);
+            if (mat.is_valid())
             {
-                m_mesh->surface_set_material(0, generic_material);
+                m_mesh->surface_set_material(surface_idx, mat);
             }
         }
 
@@ -272,18 +315,14 @@ namespace Voxel
         {
             auto rs = RenderingServer::get_singleton();
             rs->instance_set_base(m_instance_rid, m_mesh->get_rid());
-            rs->instance_set_visible(m_instance_rid, true);
+            rs->instance_set_visible(m_instance_rid, m_mesh->get_surface_count() > 0);
         }
 
         if (m_mesh.is_valid() && m_mesh->get_surface_count() > 0)
         {
             Tools::Log::debug() << "Mesh has " << m_mesh->get_surface_count()
-                                << " surfaces and " << m_mesh->surface_get_array_len(0) << " vertices "
-                                << "for chunk" << Tools::String::to_string(m_pos);
-        }
-        else
-        {
-            Tools::Log::debug() << "Mesh is empty for chunk " << Tools::String::to_string(m_pos) << ".";
+                                << " surfaces and " << m_mesh->surface_get_array_len(0)
+                                << " vertices for chunk " << Tools::String::to_string(m_pos) << ".";
         }
     }
 } //namespace Voxel

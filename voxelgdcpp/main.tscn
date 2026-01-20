@@ -37,6 +37,7 @@ glass_material = SubResource("StandardMaterial3D_0xm2m")
 metal_material = SubResource("StandardMaterial3D_h2yge")
 
 [sub_resource type="GenerationSettings" id="GenerationSettings_7mycd"]
+frequency = 6.641
 
 [node name="Main" type="Node"]
 script = ExtResource("1_ig7tw")
