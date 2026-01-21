@@ -13,10 +13,7 @@ namespace Voxel
         void set_solid(bool p_isSolid) { m_isSolid = p_isSolid; }
         bool is_solid() const { return m_isSolid; }
 
-        void set_material_type(Resource::Pallet::MaterialType p_material)
-        {
-            m_materialType = p_material;
-        }
+        void set_material_type(Resource::Pallet::MaterialType p_material) { m_materialType = p_material; }
         Resource::Pallet::MaterialType get_material_type() const { return m_materialType; }
 
     private:

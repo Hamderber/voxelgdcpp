@@ -108,6 +108,24 @@ namespace Voxel
         rs->instance_set_transform(m_instance_rid, get_global_transform());
     }
 
+    static Vector2 get_tile_uv_offset(Resource::Pallet::MaterialType type)
+    {
+        // temporary. 0 will always be unknown
+        int tile_index = static_cast<int>(type) + 1;
+
+        if (tile_index < 0 || tile_index >= (ATLAS_TILES_PER_ROW * ATLAS_TILES_PER_COLUMN))
+        {
+            tile_index = 0;
+        }
+
+        int tile_x = tile_index % ATLAS_TILES_PER_ROW;
+        int tile_y = tile_index / ATLAS_TILES_PER_ROW;
+
+        return Vector2(
+                static_cast<float>(tile_x) * TILE_UV_SIZE,
+                static_cast<float>(tile_y) * TILE_UV_SIZE);
+    }
+
     static void add_face(
             PackedVector3Array &vertices,
             PackedVector3Array &vertex_normals,
@@ -117,7 +135,8 @@ namespace Voxel
             const Vector3 &v1,
             const Vector3 &v2,
             const Vector3 &v3,
-            const Vector3 &normal)
+            const Vector3 &normal,
+            const Vector2 &uv_base_offset)
     {
         const int base_index = vertices.size();
 
@@ -131,10 +150,12 @@ namespace Voxel
         vertex_normals.push_back(normal);
         vertex_normals.push_back(normal);
 
-        uvs.push_back(Vector2(0, 0));
-        uvs.push_back(Vector2(1, 0));
-        uvs.push_back(Vector2(1, 1));
-        uvs.push_back(Vector2(0, 1));
+        const float uv_size = TILE_UV_SIZE;
+        const float margin = 0.001f;
+        uvs.push_back(uv_base_offset + Vector2(margin, margin));
+        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, margin));
+        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, uv_size - margin));
+        uvs.push_back(uv_base_offset + Vector2(margin, uv_size - margin));
 
         // Clockwise winding for Godot
         indices.push_back(base_index + 0);
@@ -184,7 +205,8 @@ namespace Voxel
 
                     if (solid)
                     {
-                        auto index = rng->randi_range(0, Pallet::TYPE_COUNT - 1);
+                        // 0 is for unknown only
+                        auto index = rng->randi_range(1, Pallet::TYPE_COUNT - 1);
                         block->set_material_type(static_cast<Pallet::MaterialType>(index));
                         block->set_solid(solid);
                     }
@@ -218,7 +240,6 @@ namespace Voxel
             PackedInt32Array indices;
         };
 
-        // Change: Array of data, indexed by MaterialType (assuming TYPE_UNKNOWN=0, up to TYPE_COUNT-1).
         SurfaceData data[Pallet::TYPE_COUNT];
 
         const uint32_t XZ = CHUNK_AXIS_LENGTH_U;
@@ -260,27 +281,57 @@ namespace Voxel
 
                     // +Z (front)
                     if (z == XZ - 1 || !get_block_at(x, y, z + 1)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p001, p101, p111, p011, Vector3(0, 0, 1));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p001, p101, p111, p011,
+                                 Vector3(0, 0, 1), uv_offset);
+                    }
 
                     // -Z (back)
                     if (z == 0 || !get_block_at(x, y, z - 1)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p100, p000, p010, p110, Vector3(0, 0, -1));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p100, p000, p010, p110,
+                                 Vector3(0, 0, -1), uv_offset);
+                    }
 
                     // +X (right)
                     if (x == XZ - 1 || !get_block_at(x + 1, y, z)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p101, p100, p110, p111, Vector3(1, 0, 0));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p101, p100, p110, p111,
+                                 Vector3(1, 0, 0), uv_offset);
+                    }
 
                     // -X (left)
                     if (x == 0 || !get_block_at(x - 1, y, z)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p000, p001, p011, p010, Vector3(-1, 0, 0));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p000, p001, p011, p010,
+                                 Vector3(-1, 0, 0), uv_offset);
+                    }
 
                     // +Y (top)
                     if (y == Y - 1 || !get_block_at(x, y + 1, z)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p011, p111, p110, p010, Vector3(0, 1, 0));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p011, p111, p110, p010,
+                                 Vector3(0, 1, 0), uv_offset);
+                    }
 
                     // -Y (bottom)
                     if (y == 0 || !get_block_at(x, y - 1, z)->is_solid())
-                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices, p000, p100, p101, p001, Vector3(0, -1, 0));
+                    {
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 p000, p100, p101, p001,
+                                 Vector3(0, -1, 0), uv_offset);
+                    }
                 }
             }
         }

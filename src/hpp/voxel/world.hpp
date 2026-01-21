@@ -89,6 +89,8 @@ namespace Voxel
         godot::Timer *m_pDebounceTimer;
         const double DEBOUNCE_DELAY = 1.5;
 
+        // TODO: Implement material object dither distance fade for all chunk materials based on this value and update when
+        // it changes
         int32_t m_renderDistance = 6;
         int64_t m_seed = 8675309;
         int32_t m_spawnRadius = 3;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "godot_cpp/classes/material.hpp"
+#include "godot_cpp/classes/base_material3d.hpp"
 #include "godot_cpp/classes/standard_material3d.hpp"
 #include "hpp/tools/log.hpp"
 #include <sstream>
@@ -19,8 +19,9 @@ namespace Tools
                 godot::Ref<godot::StandardMaterial3D> mat3d;
 
                 mat3d.instantiate();
-                mat3d->set_albedo(get_unknown_color());
                 mat3d->set_name("UNKNOWN_MATERIAL");
+                mat3d->set_albedo(get_unknown_color());
+                mat3d->set_texture_filter(godot::BaseMaterial3D::TEXTURE_FILTER_NEAREST);
 
                 m_material = mat3d;
 

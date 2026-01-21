@@ -2,6 +2,7 @@
 
 #include "godot_cpp/classes/resource.hpp"
 #include "godot_cpp/classes/standard_material3d.hpp"
+#include "godot_cpp/classes/texture.hpp"
 #include <godot_cpp/core/class_db.hpp>
 
 namespace Voxel::Resource
@@ -50,6 +51,10 @@ namespace Voxel::Resource
             emit_changed();
         }
 
+        godot::Ref<godot::Texture> get_atlas() const { return m_atlas; }
+        void set_atlas(godot::Ref<godot::Texture> p_atlas);
+
+        void apply_atlas_to_materials();
         void default_pallet();
 
     protected:
@@ -57,5 +62,6 @@ namespace Voxel::Resource
 
     private:
         godot::Ref<godot::StandardMaterial3D> m_materials[TYPE_COUNT];
+        godot::Ref<godot::Texture> m_atlas;
     };
 } //namespace Voxel::Resource

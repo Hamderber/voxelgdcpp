@@ -1,4 +1,9 @@
 #include "hpp/voxel/resource/pallet.hpp"
+#include "godot_cpp/classes/base_material3d.hpp"
+#include "godot_cpp/classes/file_access.hpp"
+#include "godot_cpp/classes/resource_loader.hpp"
+#include "godot_cpp/classes/standard_material3d.hpp"
+#include "godot_cpp/classes/texture.hpp"
 #include "hpp/tools/log_stream.hpp"
 #include "hpp/tools/material.hpp"
 
@@ -10,7 +15,6 @@ namespace Voxel::Resource
     {
         ClassDB::bind_method(D_METHOD("get_material", "type"), &Pallet::get_material);
 
-        // Optional: expose named constants so GDScript can do pallet.get_material(Pallet.TYPE_GENERIC)
         BIND_CONSTANT(TYPE_UNKNOWN);
         BIND_CONSTANT(TYPE_GENERIC);
         BIND_CONSTANT(TYPE_GLASS);
@@ -36,6 +40,10 @@ namespace Voxel::Resource
         ClassDB::bind_method(D_METHOD("set_metal_material", "m"), &Pallet::set_metal_material);
         ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "metal_material", PROPERTY_HINT_RESOURCE_TYPE, "StandardMaterial3D"),
                      "set_metal_material", "get_metal_material");
+
+        ClassDB::bind_method(D_METHOD("get_atlas"), &Pallet::get_atlas);
+        ClassDB::bind_method(D_METHOD("set_atlas", "p_atlas"), &Pallet::set_atlas);
+        ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "atlas", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_atlas", "get_atlas");
     }
 
     Ref<StandardMaterial3D> Pallet::get_material(int p_type) const
@@ -66,7 +74,53 @@ namespace Voxel::Resource
         m_materials[TYPE_METAL]->set_albedo(Color(1.f, 1.f, 1.f));
         m_materials[TYPE_METAL]->set_metallic(1.f);
 
+        String atlas_path = "res://textures/voxel_atlas.png";
+
+        ResourceLoader *loader = ResourceLoader::get_singleton();
+        m_atlas = loader->load(atlas_path);
+
+        if (m_atlas.is_null())
+        {
+            if (!FileAccess::file_exists(atlas_path))
+            {
+                Tools::Log::error() << "File does NOT exist at: " << atlas_path.ascii().ptr();
+            }
+            else
+            {
+                Tools::Log::error() << "File exists but failed to load as resource at: " << atlas_path.ptr()
+                                    << " (likely import failure or invalid format)";
+            }
+        }
+        else
+        {
+            Tools::Log::debug() << "Successfully loaded atlas: " << atlas_path.ptr()
+                                << " (type: " << m_atlas->get_class().ascii().ptr() << ")";
+        }
+
+        apply_atlas_to_materials();
+
         emit_changed();
         Tools::Log::debug("Created default pallet.");
+    }
+
+    void Pallet::set_atlas(Ref<Texture> p_atlas)
+    {
+        m_atlas = p_atlas;
+        apply_atlas_to_materials();
+        emit_changed();
+    }
+
+    void Pallet::apply_atlas_to_materials()
+    {
+        if (m_atlas.is_null())
+            return;
+
+        for (int i = 0; i < TYPE_COUNT; ++i)
+        {
+            if (m_materials[i].is_valid())
+            {
+                m_materials[i]->set("albedo_texture", Variant(m_atlas));
+            }
+        }
     }
 } //namespace Voxel::Resource
