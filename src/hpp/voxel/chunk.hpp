@@ -2,6 +2,7 @@
 
 #include "block.hpp"
 #include "constants.hpp"
+#include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 #include "godot_cpp/variant/vector3i.hpp"
 #include "resource/pallet.hpp"
@@ -19,6 +20,16 @@ namespace Voxel
     {
         GDCLASS(Chunk, Node3D)
     public:
+        struct Neighbors
+        {
+            Chunk *pos_x;
+            Chunk *neg_x;
+            Chunk *pos_z;
+            Chunk *neg_z;
+        };
+
+        typedef godot::Vector2i ChunkPos;
+
         Chunk() = default;
         ~Chunk() override = default;
 
@@ -35,9 +46,20 @@ namespace Voxel
                    static_cast<size_t>(z) * CHUNK_AXIS_LENGTH_U +
                    static_cast<size_t>(y) * (CHUNK_AXIS_LENGTH_U * CHUNK_AXIS_LENGTH_U);
         }
-        const godot::Vector2i get_pos() { return m_pos; }
+        const ChunkPos get_pos() { return m_chunk_pos; }
 
         void generate_blocks();
+
+        World *get_world() const { return m_pWorld; }
+        const godot::RID &get_rid() const { return m_instanceRID; }
+
+        Neighbors get_neighbors();
+
+        void mesh_lock() { m_mesh_locked = true; }
+        void mesh_unlock() { m_mesh_locked = false; }
+        bool mesh_locked() const { return m_mesh_locked; }
+        void remesh();
+        void remesh_neighbors();
 
     protected:
         static void _bind_methods() {}
@@ -45,7 +67,6 @@ namespace Voxel
 
     private:
         void initialize_block_data();
-        void remesh();
         void ensure_instance();
         void sync_instance_transform();
 
@@ -55,9 +76,12 @@ namespace Voxel
 
         godot::Ref<Resource::Pallet> m_pallet;
         godot::Ref<godot::ArrayMesh> m_mesh;
-        godot::RID m_instance_rid;
+        godot::RID m_instanceRID;
 
-        godot::Vector2i m_pos;
+        ChunkPos m_chunk_pos;
         std::unique_ptr<Voxel::Block *[]> m_pBlocks;
+        // The mesh starts locked so that the chunk isnt meshed until its neighbors are available during spawn generation.
+        // Initial mesh creation still happens, though remeshing is prevented until the mesh is unlocked
+        bool m_mesh_locked = true;
     };
 } //namespace Voxel

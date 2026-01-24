@@ -2,6 +2,10 @@
 
 #include "godot_cpp/classes/random_number_generator.hpp"
 #include "godot_cpp/classes/timer.hpp"
+#include "godot_cpp/variant/vector2i.hpp"
+#include "hpp/tools/hash.hpp"
+#include "hpp/tools/log_stream.hpp"
+#include "hpp/tools/string.hpp"
 #include "hpp/voxel/chunk.hpp"
 #include "resource/generation_settings.hpp"
 #include "resource/pallet.hpp"
@@ -68,6 +72,25 @@ namespace Voxel
         }
 
         godot::Ref<godot::RandomNumberGenerator> get_generation_rng() { return m_worldGenRNG; }
+
+        Chunk *try_get_chunk(godot::Vector2i p_chunkPos) const
+        {
+            // https://stackoverflow.com/questions/25144887/map-unordered-map-prefer-find-and-then-at-or-try-at-catch-out-of-range
+            auto key = Tools::Hash::chunk_pos(p_chunkPos);
+            auto iterator = m_chunks.find(key);
+
+            if (iterator != m_chunks.end())
+            {
+                Tools::Log::debug() << "Found chunk at " << Tools::String::to_string(p_chunkPos) << ".";
+                return iterator->second;
+            }
+            else
+            {
+                Tools::Log::warn() << "Attempted to get chunk at " << Tools::String::to_string(p_chunkPos)
+                                   << " but it was not part of the world's map.";
+                return nullptr;
+            }
+        }
 
     protected:
         static void _bind_methods();

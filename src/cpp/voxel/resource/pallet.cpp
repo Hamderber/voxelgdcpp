@@ -68,6 +68,9 @@ namespace Voxel::Resource
         m_materials[TYPE_GLASS]->set_name("Glass");
         m_materials[TYPE_GLASS]->set_albedo(Color(.8f, .8f, .8f, .5f));
         m_materials[TYPE_GLASS]->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+        // m_materials[TYPE_GLASS]->set_shading_mode(godot::BaseMaterial3D::SHADING_MODE_UNSHADED);
+        // Might need to change this if transluscents look wrong on areas where the sun is blocked (ex. caves)
+        m_materials[TYPE_GLASS]->set_flag(godot::BaseMaterial3D::FLAG_DONT_RECEIVE_SHADOWS, true);
 
         m_materials[TYPE_METAL] = m_materials[TYPE_UNKNOWN]->duplicate();
         m_materials[TYPE_METAL]->set_name("Metal");

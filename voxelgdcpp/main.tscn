@@ -26,6 +26,7 @@ transparency = 1
 albedo_color = Color(0.8, 0.8, 0.8, 0.5)
 albedo_texture = ExtResource("2_0xm2m")
 texture_filter = 0
+disable_receive_shadows = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1bvp3"]
 resource_name = "Metal"
@@ -33,20 +34,20 @@ albedo_texture = ExtResource("2_0xm2m")
 metallic = 1.0
 texture_filter = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lquwl"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7mycd"]
 resource_name = "UNKNOWN_MATERIAL"
 albedo_color = Color(1, 0, 0.86, 1)
 albedo_texture = ExtResource("2_0xm2m")
 texture_filter = 0
 
-[sub_resource type="Pallet" id="Pallet_7mycd"]
-unknown_material = SubResource("StandardMaterial3D_lquwl")
+[sub_resource type="Pallet" id="Pallet_lquwl"]
+unknown_material = SubResource("StandardMaterial3D_7mycd")
 generic_material = SubResource("StandardMaterial3D_0xm2m")
 glass_material = SubResource("StandardMaterial3D_h2yge")
 metal_material = SubResource("StandardMaterial3D_1bvp3")
 atlas = ExtResource("2_0xm2m")
 
-[sub_resource type="GenerationSettings" id="GenerationSettings_272bh"]
+[sub_resource type="GenerationSettings" id="GenerationSettings_7mycd"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_ig7tw")
@@ -62,5 +63,5 @@ environment = SubResource("Environment_h2yge")
 transform = Transform3D(-0.8276883, 0.2155624, -0.5181361, 0, 0.92328405, 0.38411793, 0.56118816, 0.31792986, -0.76419145, -2.4047956, 21.186386, -6.9921007)
 
 [node name="World" type="World" parent="."]
-pallet = SubResource("Pallet_7mycd")
-settings = SubResource("GenerationSettings_272bh")
+pallet = SubResource("Pallet_lquwl")
+settings = SubResource("GenerationSettings_7mycd")

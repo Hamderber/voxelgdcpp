@@ -4,14 +4,18 @@
 #include "godot_cpp/core/memory.hpp"
 #include "godot_cpp/templates/hashfuncs.hpp"
 #include "godot_cpp/variant/callable.hpp"
+#include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3i.hpp"
 #include "hpp/tools/hash.hpp"
 #include "hpp/tools/log.hpp"
 #include "hpp/tools/log_stream.hpp"
+#include "hpp/tools/string.hpp"
 #include "hpp/voxel/constants.hpp"
 #include <cstdint>
 
 using namespace godot;
+
+#define DEBUG_VERBOSE
 
 namespace Voxel
 {
@@ -150,10 +154,20 @@ namespace Voxel
     void World::generate_new_chunk(int x, int z)
     {
         Chunk *pChunk = memnew(Chunk);
-        pChunk->set_world_position(this, x, z);
+        pChunk->set_world_position(this, x * CHUNK_AXIS_LENGTH_U, z * CHUNK_AXIS_LENGTH_U);
         pChunk->set_pallet(m_pallet);
 
         m_chunks.emplace(Tools::Hash::chunk(pChunk), pChunk);
+
+#ifdef DEBUG_VERBOSE
+        auto chunkPos = pChunk->get_pos();
+        auto tryGetChunk = try_get_chunk(chunkPos);
+
+        if (tryGetChunk)
+            Tools::Log::debug() << "Verified chunk at " << Tools::String::to_string(chunkPos) << " added to world.";
+        else
+            Tools::Log::error() << "Failed to add chunk at " << Tools::String::to_string(chunkPos) << " to world!";
+#endif
 
         pChunk->set_name("Chunk_" + itos(x) + "_" + itos(z));
 
@@ -168,14 +182,29 @@ namespace Voxel
         Tools::Log::debug() << "Building spawn...";
 
         uint32_t count = 0;
-        auto L = CHUNK_AXIS_LENGTH_U;
 
-        for (int32_t x = -m_spawnRadius; x < m_spawnRadius; x++)
+        for (int x = -m_spawnRadius; x < m_spawnRadius; x++)
         {
-            for (int32_t z = -m_spawnRadius; z < m_spawnRadius; z++)
+            for (int z = -m_spawnRadius; z < m_spawnRadius; z++)
             {
-                generate_new_chunk(x * L, z * L);
+                generate_new_chunk(x, z);
                 count++;
+            }
+        }
+
+        Tools::Log::debug() << "Remeshing generated chunks..";
+
+        for (int x = -m_spawnRadius; x < m_spawnRadius; x++)
+        {
+            for (int z = -m_spawnRadius; z < m_spawnRadius; z++)
+            {
+                auto chunk = try_get_chunk(Vector2i(x, z));
+
+                if (chunk)
+                {
+                    chunk->mesh_unlock();
+                    chunk->remesh();
+                }
             }
         }
 

@@ -3,6 +3,7 @@
 #include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 #include "godot_cpp/variant/vector3i.hpp"
+#include "hpp/voxel/constants.hpp"
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -51,13 +52,6 @@ namespace Tools
         {
             std::stringstream ss;
             ss << "(" << x << ", " << y << ", " << z << ")";
-            return ss.str();
-        }
-
-        static const std::string xy_to_string(int x, int y)
-        {
-            std::stringstream ss;
-            ss << "(" << x << ", " << y << ")";
             return ss.str();
         }
     };
