@@ -2,6 +2,7 @@
 #include "godot_cpp/classes/random_number_generator.hpp"
 #include "hpp/tools/log_stream.hpp"
 #include "hpp/tools/string.hpp"
+#include "hpp/voxel/block.hpp"
 #include "hpp/voxel/constants.hpp"
 #include "hpp/voxel/world.hpp"
 #include <cstdint>
@@ -108,10 +109,9 @@ namespace Voxel
         rs->instance_set_transform(m_instance_rid, get_global_transform());
     }
 
-    static Vector2 get_tile_uv_offset(Resource::Pallet::MaterialType type)
+    static Vector2 get_tile_uv_offset(Resource::Pallet::BlockTexture type)
     {
-        // temporary. 0 will always be unknown
-        int tile_index = static_cast<int>(type) + 1;
+        int tile_index = static_cast<int>(type);
 
         if (tile_index < 0 || tile_index >= (ATLAS_TILES_PER_ROW * ATLAS_TILES_PER_COLUMN))
         {
@@ -119,7 +119,7 @@ namespace Voxel
         }
 
         int tile_x = tile_index % ATLAS_TILES_PER_ROW;
-        int tile_y = tile_index / ATLAS_TILES_PER_ROW;
+        int tile_y = tile_index / ATLAS_TILES_PER_COLUMN;
 
         return Vector2(
                 static_cast<float>(tile_x) * TILE_UV_SIZE,
@@ -152,10 +152,11 @@ namespace Voxel
 
         const float uv_size = TILE_UV_SIZE;
         const float margin = 0.001f;
-        uvs.push_back(uv_base_offset + Vector2(margin, margin));
-        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, margin));
-        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, uv_size - margin));
+
         uvs.push_back(uv_base_offset + Vector2(margin, uv_size - margin));
+        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, uv_size - margin));
+        uvs.push_back(uv_base_offset + Vector2(uv_size - margin, margin));
+        uvs.push_back(uv_base_offset + Vector2(margin, margin));
 
         // Clockwise winding for Godot
         indices.push_back(base_index + 0);
@@ -209,6 +210,8 @@ namespace Voxel
                         auto index = rng->randi_range(1, Pallet::TYPE_COUNT - 1);
                         block->set_material_type(static_cast<Pallet::MaterialType>(index));
                         block->set_solid(solid);
+                        block->set_texture(static_cast<Pallet::BlockTexture>(index));
+                        // block->set_random_oreintation(true);
                     }
 
                     m_pBlocks[get_block_index_local(x, y, z)] = block;
@@ -239,6 +242,30 @@ namespace Voxel
             PackedVector2Array uvs;
             PackedInt32Array indices;
         };
+
+        // enum Face
+        // {
+        //     POS_X,
+        //     NEG_X,
+        //     POS_Y,
+        //     NEG_Y,
+        //     POS_Z,
+        //     NEG_Z
+        // };
+
+        // enum DiscreteRotation
+        // {
+        //     ROT_0,
+        //     ROT_90,
+        //     ROT_180,
+        //     ROT_270
+        // };
+
+        // struct FaceData
+        // {
+        //     Face face;
+        //     DiscreteRotation rotation;
+        // };
 
         SurfaceData data[Pallet::TYPE_COUNT];
 
@@ -282,8 +309,10 @@ namespace Voxel
                     // +Z (front)
                     if (z == XZ - 1 || !get_block_at(x, y, z + 1)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
+                                 //  p111, p011, p001, p101,
+
                                  p001, p101, p111, p011,
                                  Vector3(0, 0, 1), uv_offset);
                     }
@@ -291,7 +320,7 @@ namespace Voxel
                     // -Z (back)
                     if (z == 0 || !get_block_at(x, y, z - 1)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
                                  p100, p000, p010, p110,
                                  Vector3(0, 0, -1), uv_offset);
@@ -300,7 +329,7 @@ namespace Voxel
                     // +X (right)
                     if (x == XZ - 1 || !get_block_at(x + 1, y, z)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
                                  p101, p100, p110, p111,
                                  Vector3(1, 0, 0), uv_offset);
@@ -309,7 +338,7 @@ namespace Voxel
                     // -X (left)
                     if (x == 0 || !get_block_at(x - 1, y, z)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
                                  p000, p001, p011, p010,
                                  Vector3(-1, 0, 0), uv_offset);
@@ -318,7 +347,7 @@ namespace Voxel
                     // +Y (top)
                     if (y == Y - 1 || !get_block_at(x, y + 1, z)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
                                  p011, p111, p110, p010,
                                  Vector3(0, 1, 0), uv_offset);
@@ -327,7 +356,7 @@ namespace Voxel
                     // -Y (bottom)
                     if (y == 0 || !get_block_at(x, y - 1, z)->is_solid())
                     {
-                        Vector2 uv_offset = get_tile_uv_offset(block->get_material_type());
+                        Vector2 uv_offset = get_tile_uv_offset(block->get_texture());
                         add_face(sd.vertices, sd.vertex_normals, sd.uvs, sd.indices,
                                  p000, p100, p101, p001,
                                  Vector3(0, -1, 0), uv_offset);
